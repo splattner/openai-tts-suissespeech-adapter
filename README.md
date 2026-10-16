@@ -15,10 +15,13 @@ For Home Assistant OS / Supervised, install the prebuilt add-on (amd64 / aarch64
 4. Leave both add-on API key options empty for client-supplied Suisse Speech keys,
    or set both `suisse_speech_api_key` and `adapter_api_key` for server-held credentials.
 5. In `sfortis/openai_tts`, choose **Custom**, endpoint
-   `http://YOUR_HOME_ASSISTANT_IP:8000/v1/audio/speech`, model **`studio`** or **`swift`**,
+   `http://ADDON_HOSTNAME:8000/v1/audio/speech`, model **`studio`** or **`swift`**,
    voice `anna`, and format `mp3`. Use the Suisse Speech key, or the configured adapter key.
 
 See [add-on documentation](ha-addon/DOCS.md) for all options and troubleshooting.
+Copy `ADDON_HOSTNAME` from the internal endpoint printed in the add-on's Log tab.
+The add-on does not publish a host port by default: Home Assistant reaches it over
+the internal network. Ingress is for authenticated browser access, not this API.
 Home Assistant Container/Core installations can use Docker Compose below instead.
 
 ## Quick start with Docker Compose
@@ -66,7 +69,7 @@ The adapter never automatically retries paid synthesis requests.
 `YOUR_ADAPTER_HOST` must be reachable **from Home Assistant**. `localhost` means
 Home Assistant itself, not another Docker container or your laptop. Use your
 Docker host's LAN address, or the Compose service name if both containers share
-a Docker network. When using the add-on, use your Home Assistant host's LAN IP.
+a Docker network. When using the add-on, use the internal endpoint from its Log tab.
 
 Example action (replace entity IDs):
 

@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -37,6 +38,8 @@ def main():
             file=sys.stderr,
         )
         raise SystemExit(1) from None
+    hostname = socket.gethostname().replace("_", "-")
+    print(f"Internal OpenAI speech endpoint: http://{hostname}:8000/v1/audio/speech", flush=True)
     if os.getuid() == 0:
         os.setgroups([])
         os.setgid(10001)

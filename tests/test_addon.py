@@ -67,3 +67,21 @@ def test_addon_defaults_match_launcher_and_schema():
     assert config["arch"] == ["aarch64", "amd64"]
     assert "host_network" not in config
     assert "homeassistant_api" not in config
+    assert config["ports"] == {"8000/tcp": None}
+    assert "ingress" not in config
+
+
+def test_startup_logs_internal_endpoint(monkeypatch, capsys):
+    monkeypatch.setattr(addon_run.Path, "read_text", lambda path: "{}")
+    monkeypatch.setattr(
+        addon_run.socket, "gethostname", lambda: "b81c4299_suisse_speech_openai_tts"
+    )
+    monkeypatch.setattr(addon_run.os, "getuid", lambda: 10001)
+    monkeypatch.setattr(addon_run.os, "environ", {})
+    commands = []
+    monkeypatch.setattr(addon_run.os, "execv", lambda executable, args: commands.append(args))
+    addon_run.main()
+    assert (
+        "http://b81c4299-suisse-speech-openai-tts:8000/v1/audio/speech" in capsys.readouterr().out
+    )
+    assert commands[0][1:4] == ["-m", "uvicorn", "adapter.main:app"]

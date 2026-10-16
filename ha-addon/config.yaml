@@ -8,9 +8,9 @@ arch:
   - amd64
 image: ghcr.io/splattner/openai-tts-suissespeech-adapter/ha-addon
 ports:
-  8000/tcp: 8000
+  8000/tcp: null
 ports_description:
-  8000/tcp: OpenAI-compatible speech API
+  8000/tcp: Optional LAN access; Home Assistant uses the internal add-on hostname
 options:
   suisse_speech_api_key: ""
   adapter_api_key: ""

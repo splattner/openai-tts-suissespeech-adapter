@@ -12,14 +12,36 @@ Suisse Speech. It needs a Suisse Speech account/key; it does not use OpenAI.
    your Suisse Speech API key in the OpenAI TTS integration instead.
 4. Start the add-on and enable **Start on boot** and **Watchdog** if desired.
 5. Install `sfortis/openai_tts` through HACS and add a **Custom** provider.
-6. Set its API endpoint to `http://YOUR_HOME_ASSISTANT_IP:8000/v1/audio/speech`.
+6. Open the add-on's Log tab and copy the **Internal OpenAI speech endpoint**
+   into the integration's API endpoint field: `http://ADDON_HOSTNAME:8000/v1/audio/speech`.
 7. Enter your Suisse Speech key in the integration's API key field. Select
    model `studio` or `swift`, voice `anna` (or a live catalogue voice), format `mp3`.
 
-Use the Home Assistant host's LAN IP, not `localhost`. Port 8000 is published
-to the host. If it conflicts with another service, change the mapping in the
-add-on Network tab and use the new port in your integration endpoint.
-An ingress/sidebar URL is not an API endpoint; this add-on does not use ingress.
+Home Assistant reaches the add-on through the internal Supervisor network.
+Port 8000 stays **inside the container** and does not conflict with a host service.
+No host port is published by default. Use the internal hostname, not `localhost`
+or your Home Assistant host's LAN IP.
+
+With the repository URL from the installation instructions, the usual endpoint is:
+
+```text
+http://b81c4299-suisse-speech-openai-tts:8000/v1/audio/speech
+```
+
+The hostname depends on the repository ID; the Log tab is authoritative.
+For an existing 0.1.0 installation with a port conflict, clear the host port
+mapping in the add-on's **Network** tab, save, and restart. Updating the add-on
+may retain your previous port setting, so check it even after updating.
+
+**Why not ingress?** Ingress proxies an authenticated Home Assistant browser
+session. The OpenAI TTS integration makes server-to-server HTTP requests with
+an API key; it does not carry an ingress/browser session. An ingress/sidebar URL
+is therefore not a suitable speech API endpoint. This service does not need ingress.
+
+If other devices on your LAN need the API, optionally map `8000/tcp` to a free
+host port in the Network tab, e.g. `18000`, and use
+`http://YOUR_HOME_ASSISTANT_IP:18000/v1/audio/speech` on those devices. Internal
+Home Assistant requests still use the add-on hostname and container port 8000.
 
 ## Configuration
 
@@ -70,12 +92,14 @@ not realtime streamed; SSE is unsupported. Input is limited to 8,000 characters.
 
 ## Troubleshooting and security
 
-- **Connection refused:** check that the add-on is running, the port mapping,
-  and the host IP. The endpoint must end in `/v1/audio/speech`.
+- **Port already in use:** clear the host port in the Network tab; no mapping is
+  needed for Home Assistant's internal connection.
+- **Connection refused:** check that the add-on is running and copy the internal
+  endpoint from its Log tab. The endpoint must end in `/v1/audio/speech`.
 - **401/403:** check which credential mode you selected and the key in the integration.
 - **429:** check your Suisse Speech allowance/concurrency. Requests are not retried automatically.
 - **Synthetic audio:** `sv_test_…` keys produce sandbox audio; use a live key for real voices.
-- **Health:** `http://YOUR_HOME_ASSISTANT_IP:8000/healthz` checks the local server,
+- **Health:** `http://ADDON_HOSTNAME:8000/healthz` checks the local server internally,
   not provider availability or credentials.
 
 The add-on needs no Home Assistant API, host network, devices, or privileged
