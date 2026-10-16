@@ -233,6 +233,13 @@ pattern used by `splattner/digitalstrom-vdc-bridge`:
 
 Repository Actions settings must allow creating pull requests. GHCR packages must
 be public so Home Assistant can pull images without registry credentials.
+On the first publication, open your GitHub profile's **Packages**, select
+`openai-tts-suissespeech-adapter/ha-addon`, then **Package settings → Danger Zone →
+Change visibility → Public**. GitHub creates new packages privately even for a
+public source repository; repository visibility alone does not publish the image.
+Repeat for the standalone package if distributing it, and the architecture-specific
+packages if they should also be directly pullable. This is a one-time setting;
+subsequent release tags retain the package visibility.
 Release publishing uses `GITHUB_TOKEN`; no personal access token is required.
 Release-please PRs created with that token do not trigger other workflows;
 push an update or manually run checks if you require CI on those PRs before merging.
