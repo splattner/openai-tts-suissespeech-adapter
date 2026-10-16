@@ -1,0 +1,31 @@
+name: Suisse Speech OpenAI TTS
+description: OpenAI-compatible Swiss German text-to-speech using Suisse Speech
+version: "0.1.0"
+slug: suisse_speech_openai_tts
+url: https://github.com/splattner/openai-tts-suissespeech-adapter
+arch:
+  - aarch64
+  - amd64
+image: ghcr.io/splattner/openai-tts-suissespeech-adapter/ha-addon
+ports:
+  8000/tcp: 8000
+ports_description:
+  8000/tcp: OpenAI-compatible speech API
+options:
+  suisse_speech_api_key: ""
+  adapter_api_key: ""
+  default_voice: anna
+  default_language: de-CH
+  default_dialect: zurich
+  upstream_timeout_seconds: 120
+  voice_aliases: []
+schema:
+  suisse_speech_api_key: password?
+  adapter_api_key: password?
+  default_voice: str
+  default_language: str
+  default_dialect: str
+  upstream_timeout_seconds: int(1,600)
+  voice_aliases:
+    - alias: str
+      voice: str

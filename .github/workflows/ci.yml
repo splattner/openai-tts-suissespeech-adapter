@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.9.2"
+          enable-cache: true
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  addon-lint:
+    name: Validate add-on metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: frenck/action-addon-linter@v2.21.1
+        with:
+          path: ha-addon
+
+  container:
+    name: Add-on container smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -f ha-addon/Dockerfile -t suisse-addon:test .
+      - name: Start container with Supervisor-style options
+        run: |
+          mkdir -p /tmp/addon-data
+          printf '%s' '{"default_dialect":"zurich"}' > /tmp/addon-data/options.json
+          chmod 600 /tmp/addon-data/options.json
+          docker run -d --name suisse-addon -p 8000:8000 \
+            -v /tmp/addon-data:/data:ro suisse-addon:test
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8000/healthz; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs suisse-addon
+          exit 1
+      - name: Check API authentication and runtime user
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Content-Type: application/json' -d '{"input":"Grüezi"}' \
+            http://localhost:8000/v1/audio/speech)
+          test "$status" = 401
+          docker exec suisse-addon sh -c 'grep -Eq "^Uid:[[:space:]]+10001" /proc/1/status'
+      - if: always()
+        run: docker logs suisse-addon; docker rm -f suisse-addon || true

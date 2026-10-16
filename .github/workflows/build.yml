@@ -1,0 +1,124 @@
+name: Build and Release Images
+
+on:
+  workflow_call:
+    inputs:
+      tag_name:
+        description: Release tag, e.g. v0.1.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Existing release tag to build, e.g. v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-${{ inputs.tag_name }}
+  cancel-in-progress: false
+
+env:
+  HA_ADDON_IMAGE_NAME: ha-addon
+  HA_ADDON_ARCHITECTURES: '["amd64", "aarch64"]'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name }}
+      - name: Validate version
+        id: version
+        env:
+          TAG: ${{ inputs.tag_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.03.2
+        id: matrix
+        with:
+          architectures: ${{ env.HA_ADDON_ARCHITECTURES }}
+          image-name: ${{ env.HA_ADDON_IMAGE_NAME }}
+          registry-prefix: ghcr.io/${{ github.repository }}
+
+  docker:
+    name: Standalone multi-arch image
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name }}
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ inputs.tag_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag_name }}
+            type=raw,value=latest
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=standalone
+          cache-to: type=gha,mode=max,scope=standalone
+
+  ha-addon-build:
+    name: HA add-on (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name }}
+      - uses: home-assistant/builder/actions/build-image@2026.03.2
+        with:
+          arch: ${{ matrix.arch }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          push: "true"
+          version: ${{ needs.prepare.outputs.version }}
+          file: ha-addon/Dockerfile
+          cosign: "false"
+
+  ha-addon-manifest:
+    name: HA add-on multi-arch manifest
+    needs: [prepare, ha-addon-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.03.2
+        with:
+          architectures: ${{ env.HA_ADDON_ARCHITECTURES }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ${{ env.HA_ADDON_IMAGE_NAME }}
+          registry-prefix: ghcr.io/${{ github.repository }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          cosign: "false"
