@@ -1,6 +1,6 @@
 name: Suisse Speech OpenAI TTS
 description: OpenAI-compatible Swiss German text-to-speech using Suisse Speech
-version: "0.1.0"
+version: 0.1.1
 slug: suisse_speech_openai_tts
 url: https://github.com/splattner/openai-tts-suissespeech-adapter
 arch:
@@ -12,8 +12,8 @@ ports:
 ports_description:
   8000/tcp: Optional LAN access; Home Assistant uses the internal add-on hostname
 options:
-  suisse_speech_api_key: ""
-  adapter_api_key: ""
+  suisse_speech_api_key: ''
+  adapter_api_key: ''
   default_voice: anna
   default_language: de-CH
   default_dialect: zurich
